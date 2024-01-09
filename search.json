@@ -1,0 +1,93 @@
+[
+  {
+    "objectID": "about.html",
+    "href": "about.html",
+    "title": "Jacob Rooney",
+    "section": "",
+    "text": "I’m a mathematician interested in machine learning.\n\nEducation\nUniversity of California, Los Angeles | Los Angeles, CA\nPh.D. in Mathematics | 2012—2018\nUniversity of Georgia | Athens, GA\nB.S. in Mathematics | 2008—2012\n\n\nExperience\nSimons Center for Geometry and Physics | Stony Brook, NY\nResearch Assistant Professor (Postdoc) | 2020—2023\nUniversity of California, Los Angeles | Los Angeles, CA\nAssistant Adjunct Professor (Postdoc) | 2019—2020\nUniversity of Southern California | Los Angeles, CA\nAssistant Professor (RTPC) (Postdoc) | 2018—2019"
+  },
+  {
+    "objectID": "blog/posts/2024-01-08-clean-pets-dataset/index.html",
+    "href": "blog/posts/2024-01-08-clean-pets-dataset/index.html",
+    "title": "Cleaning an Image Dataset with ResNet Embeddings and fastai",
+    "section": "",
+    "text": "The goal of this post is to do some data cleaning on the Oxford-IIIT Pets dataset, an image classification dataset with photos of cats and dogs. We’ll get our results using image embeddings from the body of a pre-trained ResNet model, some basic machine learning and image processing techniques, and a full ResNet model fine-tuned on the dataset using fastai. We’ll use fastai’s version of the Pets dataset and take advantage of some convenience functions from the fastai and fastcore libraries.\n\nimport os\nimport random\nfrom pathlib import Path\n\nimport numpy as np\nimport pandas as pd\nimport matplotlib.pyplot as plt\n\nimport cv2\n\nimport torch\nimport torchvision\nimport torch.nn.functional as F\n\nimport fastcore.all as fc\n\nThe list of Python packages and specific versions used to make this post are in the table below.\n\n\n\n\n\nPackage\nVersion\n\n\n\n\npython\n3.9.16\n\n\nscipy\n1.9.2\n\n\nfastai\n2.7.13\n\n\npytorch\n2.1.2+cu121\n\n\nfastcore\n1.5.29\n\n\ntorchvision\n0.16.2+cu121\n\n\nopencv-python\n4.9.0"
+  },
+  {
+    "objectID": "blog/posts/2024-01-08-clean-pets-dataset/index.html#image-similarity-search",
+    "href": "blog/posts/2024-01-08-clean-pets-dataset/index.html#image-similarity-search",
+    "title": "Cleaning an Image Dataset with ResNet Embeddings and fastai",
+    "section": "Image Similarity Search",
+    "text": "Image Similarity Search\nBefore we go any further, let’s implement a basic image similarity search function over the dataset. If our embeddings can’t accomplish that task, then using them to look for duplicates will be a waste of time. We’ll measure how similar two images are using the cosine similarity distance between their embeddings.\n\ndef pairwise_cosine_similarities(embs, batch_size=8, device=device):\n    embs = embs.to(device)\n    num_embs = embs.shape[0]\n    distances = torch.empty((num_embs, num_embs), device=device)\n    for idx in range(0, num_embs, batch_size):\n        s = slice(idx, min(idx+batch_size, num_embs))\n        distances[s] = F.cosine_similarity(embs[None], embs[s, None], dim=-1)\n    # don't match dataset entries with themselves\n    distances.fill_diagonal_(-torch.inf)\n    return distances.to('cpu')\n\ndistances = pairwise_cosine_similarities(embeddings)\n\nNow let’s look at some examples and see if our embeddings are worth anything.\n\ndef show_k_closest(idx, dataset=pets_dataset, distances=distances, k=4):\n    item_metrics = distances[idx]\n    k_closest_idxs = item_metrics.argsort(descending=True)[:k]\n    k_closest_imgs = dataset[k_closest_idxs]\n    relevant_imgs = [dataset[idx]] + k_closest_imgs\n    show_image_list(\n        relevant_imgs,\n        max_per_col=k+1,\n        title_option='label_original',\n    )\n\nshow_k_closest(500)\nshow_k_closest(3303)\n\n\n\n\n\n\n\n\n\nL supports numpy-style indexing\nLooks good!"
+  },
+  {
+    "objectID": "blog/posts/2024-01-08-clean-pets-dataset/index.html#duplicate-and-near-duplicate-images",
+    "href": "blog/posts/2024-01-08-clean-pets-dataset/index.html#duplicate-and-near-duplicate-images",
+    "title": "Cleaning an Image Dataset with ResNet Embeddings and fastai",
+    "section": "Duplicate and Near-Duplicate Images",
+    "text": "Duplicate and Near-Duplicate Images\nNow let’s go ahead and find groups of similar images to hunt for duplicates. We’ll threshold the distances we computed earlier to get a boolean matrix, which we can view as the adjacency matrix of a graph whose vertices are the entries of the dataset.2 The connected components of that graph with more than one vertex are our desired groups.\n\nfrom scipy.sparse.csgraph import connected_components\n\ndef group_similar_images(distances, threshold, dataset=pets_dataset):\n    graph = (distances &gt; threshold).numpy()\n    num_components, labels = connected_components(graph)\n    components = fc.L(dataset[labels == i] for i in range(num_components))\n    groups = components.filter(lambda o: len(o) &gt; 1)\n    return groups\n\ngroups = group_similar_images(distances, 0.85)\n\n\n\nL has a built-in filter method.\nHow many images did we find?\n\nprint(f'number of groups: {len(groups):3d}\\n'\n      f'number of images: {len(groups.concat())}')\n\nnumber of groups:  92\nnumber of images: 192\n\n\n\n\nL has a built-in concat method that concatenates all of its elements into a new L\nWe can check and see that the groups we found really are duplicates or near-duplicates. We’ll only show a selection of the groups we found; the remaining ones are similar.\n\nshow_image_list(groups[20, 52, 44, 16, 2].concat(), max_per_col=6)\n\n\n\n\nLet’s update our list of images to remove all but one member from each group.\n\nduplicate_images = set(fc.flatten(o[1:] for o in groups))\nimages_to_remove.update(duplicate_images)\n\n\n\nas its name suggests, fc.flatten flattens its input, returning a generator"
+  },
+  {
+    "objectID": "blog/posts/2024-01-08-clean-pets-dataset/index.html#bright-and-dark-images",
+    "href": "blog/posts/2024-01-08-clean-pets-dataset/index.html#bright-and-dark-images",
+    "title": "Cleaning an Image Dataset with ResNet Embeddings and fastai",
+    "section": "Bright and Dark Images",
+    "text": "Bright and Dark Images\nOne way to measure the brightness of an image is to convert it to HLS (hue, lightness, and saturation) format. OpenCV has a cvtColor function that does this transformation. They compute lightness in the following way. For each pixel in an RGB image, with values \\((r, g, b)\\), we set \\(V_\\text{max} = \\max(r, g, b)\\) and \\(V_\\text{min} = \\min(r, g, b)\\); then the lightness of that pixel is the average \\((V_\\text{max} + V_\\text{min}) / 2\\).3\n\ndef brightness(img):\n    img = np.asarray(load_image(img, mode='RGB'))\n    img_hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)\n    return img_hls[..., 1].mean()\n\nbright_vals = fc.parallel(brightness, pets_dataset, n_workers=4)\n\n\n\nfc.parallel is a convenience multiprocessing function that maps a function passed as the first input over the second input in parallel\nWe’ll filter for bright images using a lower bound on the brightness and only show a few of the brightest images.4\n\nbright_images = pets_dataset[bright_vals.map(fc.gt(231))]\nshow_image_list(bright_images, row_height=4)\n\n\n\n\n\n\nfc.gt is a fastcore function that, when passed one parameter, returns a curried version of operator.gt\nThese images are also all clearly identifiable, so we’ll keep them too.\nWe can also filter for dark images using an upper bound on the brightness. Again, we’ll only show a few of the darkest images.\n\ndark_images = pets_dataset[bright_vals.map(fc.lt(25))]\nshow_image_list(dark_images, row_height=4)\n\n\n\n\n\n\nfc.lt is the “less than” analogue of the function fc.gt above\nThese images are all clearly identifiable, so we won’t remove any of them."
+  },
+  {
+    "objectID": "blog/posts/2024-01-08-clean-pets-dataset/index.html#outliers",
+    "href": "blog/posts/2024-01-08-clean-pets-dataset/index.html#outliers",
+    "title": "Cleaning an Image Dataset with ResNet Embeddings and fastai",
+    "section": "Outliers",
+    "text": "Outliers\nWe’ll look for potential outliers by first projecting our embeddings to a 50-dimensional space with principal component analysis and then using a local outlier factor model.5 The value for contamination is set to a low value here to show only a few images.6\n\nfrom sklearn.decomposition import PCA\nfrom sklearn.neighbors import LocalOutlierFactor\nfrom sklearn.pipeline import make_pipeline\n\npca = PCA(n_components=50, svd_solver='full')\nclf = LocalOutlierFactor(\n    n_neighbors=4, metric='cosine', n_jobs=4, contamination=0.0005\n)\noutlier_preds = make_pipeline(pca, clf).fit_predict(embeddings.numpy())\noutlier_candidates = pets_dataset[outlier_preds == -1]\nshow_image_list(outlier_candidates, row_height=4)\n\n\n\n\nOne of these images looks like a problem: great_pyrenees_36 contains both a cat and a dog, so we should remove it from the dataset.\n\nimages_to_remove.add(outlier_candidates[0])"
+  },
+  {
+    "objectID": "blog/posts/2024-01-08-clean-pets-dataset/index.html#blurry-images",
+    "href": "blog/posts/2024-01-08-clean-pets-dataset/index.html#blurry-images",
+    "title": "Cleaning an Image Dataset with ResNet Embeddings and fastai",
+    "section": "Blurry Images",
+    "text": "Blurry Images\nWe’ll measure blurriness using the squared Euclidean norm of the image Laplacian. A sharp image tends to have many distinct edges and boundaries in it, and the image Laplacian detects those features.\n\ndef compute_laplacian(img):\n    img = np.asarray(load_image(img, mode='L'))\n    return cv2.Laplacian(img, cv2.CV_64F, ksize=5)\n\nThe way the Laplacian detects blurry images is most clearly seen through examples. We’ll start with a relatively sharp image…\n\nsharp_img = pets_dataset[59]\nsharp_laplacian = compute_laplacian(sharp_img)\nshow_image_list([sharp_img, sharp_laplacian], col_width=11, row_height=6)\n\n\n\n\n… and contrast that with a relatively blurry image.\n\nblurry_img = pets_dataset[5674]\nblurry_laplacian = compute_laplacian(blurry_img)\nshow_image_list([blurry_img, blurry_laplacian], col_width=6, row_height=4)\n\n\n\n\nSharp images tend to have a Laplacian with a greater squared norm than blurry images. We’ll just compute it for each image and take those with the lowest values as our candidate blurry images. I’ll only show a few of the images whose Laplaicans have the smallest squared norms.7\n\ndef laplacian_norm_squared(img):\n    laplacian = compute_laplacian(img)\n    return (laplacian**2).sum()\n\nsquared_norms = fc.parallel(laplacian_norm_squared, pets_dataset, n_workers=4)\nthreshold = np.quantile(squared_norms, q=0.0005)\nblurry_candidates = pets_dataset[squared_norms.map(fc.lt(threshold))]\nshow_image_list(blurry_candidates, max_per_col=4, row_height=4)\n\n\n\n\n\n\nL has a built-in map method\nEach of these images is identifiable, so we’ll keep them all."
+  },
+  {
+    "objectID": "blog/posts/2024-01-08-clean-pets-dataset/index.html#fine-tune-a-model",
+    "href": "blog/posts/2024-01-08-clean-pets-dataset/index.html#fine-tune-a-model",
+    "title": "Cleaning an Image Dataset with ResNet Embeddings and fastai",
+    "section": "Fine-Tune a Model",
+    "text": "Fine-Tune a Model\nFinally, we’ll use fastai to quickly fine-tune a breed classification model on the Pets dataset and examine the images with the greatest losses to check for any other issues. We’ll use fastai’s DataBlock API to organize our data into a DataLoaders and the vision_learner convenience function to create a trainer that we’ll use to fine-tune a pre-trained ResNet50 model.8 One of fastai’s best features is its learning rate finder, which, as the name suggests, helps us find an advantageous learning rate.\n\nimport fastai.vision.all as fv\n\ndef get_breed(filename):\n    return '_'.join(filename.stem.split('_')[:-1])\n\ndblock = fv.DataBlock(\n    blocks=(fv.ImageBlock, fv.CategoryBlock),\n    get_items=fc.noop,\n    get_y=get_breed,\n    item_tfms=fv.Resize(460),\n    batch_tfms=[*fv.aug_transforms(size=224, min_scale=0.75),\n                fv.Normalize.from_stats(*fv.imagenet_stats)],\n)\ndls = dblock.dataloaders(pets_dataset)\nlearn = fv.vision_learner(dls, fv.resnet50, metrics=fv.accuracy)\nlrs = learn.lr_find(suggest_funcs=(fv.minimum, fv.steep, fv.valley, fv.slide))\n\n\n\n\n\n\n\n\n\n\n\nIt looks like the loss is decreasing most quickly at the point marked steep, so we’ll use that learning rate. We’ll use the Learner’s fine_tune method to first freeze the weights in the model’s body and train for one epoch, then unfreeze everything and train for five epochs.\n\nlearn.fine_tune(5, lrs.steep)\n\n\n\n\n\n\n\n\nepoch\ntrain_loss\nvalid_loss\naccuracy\ntime\n\n\n\n\n0\n1.126889\n0.367208\n0.889716\n00:17\n\n\n\n\n\n\n\n\n\n\n\n\nepoch\ntrain_loss\nvalid_loss\naccuracy\ntime\n\n\n\n\n0\n0.419063\n0.284448\n0.921516\n00:20\n\n\n1\n0.365594\n0.341063\n0.899188\n00:20\n\n\n2\n0.255289\n0.224743\n0.929635\n00:20\n\n\n3\n0.140554\n0.210314\n0.932341\n00:20\n\n\n4\n0.081783\n0.204320\n0.939784\n00:20\n\n\n\n\n\nWe can use fastai’s Interpretation class to look at the images where the outputs from the model have the greatest losses.\n\nplt.rcParams.update({'font.size': 8})\ninterp = fv.Interpretation.from_learner(learn)\ninterp.plot_top_losses(k=9, nrows=3, figsize=(15, 9))\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nThere don’t seem to be any issues with the images themselves, so we won’t remove anything from the dataset."
+  },
+  {
+    "objectID": "blog/posts/2024-01-08-clean-pets-dataset/index.html#footnotes",
+    "href": "blog/posts/2024-01-08-clean-pets-dataset/index.html#footnotes",
+    "title": "Cleaning an Image Dataset with ResNet Embeddings and fastai",
+    "section": "Footnotes",
+    "text": "Footnotes\n\n\nI tried out a few reasonably sized pre-trained models from torchvision, fastai, and timm, and the embeddings from this Torchvision ResNet50 model seemed to perform the best on image similarity search and finding duplicate images.↩︎\nI chose the threshold of 0.85 to try to catch as many duplicate groups as I could while making sure that near-duplicate groups had only small changes between the images.↩︎\nI found that OpenCV’s implementation was faster than using the formula directly.↩︎\nI didn’t find any problem images with a lower threshold either.↩︎\nOf the outlier detection methods I tried, this was the one that most easily found the problem image below.↩︎\nI didn’t find any additional problem images with higher values for contamination.↩︎\nI didn’t find any problem images with higher threshold values.↩︎\nWe’re using fastai’s ResNet50 pre-trained weights now since they fine-tuned more easily and to a higher accuracy than the Torchvision weights we used earlier.↩︎"
+  },
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "Jacob Rooney",
+    "section": "",
+    "text": "I’m a mathematician interested in machine learning.\n \n  \n   \n  \n    \n     GitHub"
+  },
+  {
+    "objectID": "index.html#a-little-about-me",
+    "href": "index.html#a-little-about-me",
+    "title": "Jacob Rooney",
+    "section": "A Little About Me",
+    "text": "A Little About Me\nAfter getting a PhD in mathematics at UCLA, I spent several years in academia before becoming interested in machine learning. In particular, I want to see what practical insights and advancements mathematics can bring to the machine learning world. You can read more detailed information about me here."
+  },
+  {
+    "objectID": "index.html#recent-blog-posts",
+    "href": "index.html#recent-blog-posts",
+    "title": "Jacob Rooney",
+    "section": "Recent Blog Posts",
+    "text": "Recent Blog Posts\nI recently started to blog about the projects I’m working on. My most recent ones are listed below, and you can check out all of them here.\n\n\n\n\n  \n\n\n\n\nCleaning an Image Dataset with ResNet Embeddings and fastai\n\n\n\n\n\nWe’ll clean up some problems in the Oxford-IIIT Pets dataset.\n\n\n\n\n\n\nJan 8, 2024\n\n\nJacob Rooney\n\n\n\n\n\n\nNo matching items"
+  },
+  {
+    "objectID": "blog/index.html",
+    "href": "blog/index.html",
+    "title": "Blog",
+    "section": "",
+    "text": "Cleaning an Image Dataset with ResNet Embeddings and fastai\n\n\n\n\n\n\n\nComputer Vision\n\n\n\n\nWe’ll clean up some problems in the Oxford-IIIT Pets dataset.\n\n\n\n\n\n\nJan 8, 2024\n\n\nJacob Rooney\n\n\n\n\n\n\nNo matching items"
+  }
+]
