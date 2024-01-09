@@ -1,0 +1,13 @@
+---
+title: "Blog"
+description: "Recent projects I've been working on"
+listing:
+  id: blog-posts
+  contents: posts
+  type: default
+  sort: "date-desc"
+  categories: true
+---
+
+::: {#blog-post}
+:::

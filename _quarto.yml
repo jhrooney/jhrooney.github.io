@@ -1,0 +1,30 @@
+project:
+  type: website
+
+website:
+  title: "Jacob Rooney"
+  site-url: https://jhrooney.github.io
+  description: "Jacob Rooney's personal website"
+  reader-mode: true
+  navbar:
+    left:
+      - href: index.qmd
+        text: Home
+      - href: blog/index.qmd
+        text: Blog
+      - href: about.qmd
+        text: About Me
+    tools:
+      - icon: github
+      - href: https://github.com/jhrooney
+format:
+  html:
+    theme: cosmo
+    css: styles.css
+    toc: true
+    smooth-scroll: true
+execute: 
+  freeze: true
+
+
+

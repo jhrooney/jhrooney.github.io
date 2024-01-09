@@ -1,0 +1,36 @@
+---
+title: Jacob Rooney
+toc: false
+about:
+  id: landing
+  template: jolla
+  image: images/homepage_photo.jpg
+  links:
+    - icon: github
+      text: GitHub
+      href: https://github.com/jhrooney
+listing:
+  - id: homepage-posts
+    contents: blog/posts
+    type: default
+    max-items: 5
+    sort: "date-desc"
+---
+
+::: {#landing}
+I'm a mathematician interested in machine learning.
+:::
+
+## A Little About Me
+
+After getting a PhD in mathematics at UCLA, I spent several years in academia before becoming interested in machine learning.
+In particular, I want to see what practical insights and advancements mathematics can bring to the machine learning world.
+You can read more detailed information about me [here](about.qmd).
+
+## Recent Blog Posts
+
+I recently started to blog about the projects I'm working on.
+My most recent ones are listed below, and you can check out all of them [here](blog/index.qmd).
+
+::: {#homepage-posts}
+:::
