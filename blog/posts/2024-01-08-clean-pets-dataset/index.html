@@ -217,7 +217,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <section id="overview-and-setup" class="level1">
 <h1>Overview and Setup</h1>
-<p>The goal of this post is to do some data cleaning on the Oxford-IIIT Pets dataset, an image classification dataset with photos of cats and dogs. We’ll get our results using image embeddings from the body of a pre-trained ResNet model, some basic machine learning and image processing techniques, and a full ResNet model fine-tuned on the dataset using fastai. We’ll use fastai’s version of the Pets dataset and take advantage of some convenience functions from the <a href="https://docs.fast.ai/">fastai</a> and <a href="https://fastcore.fast.ai/">fastcore</a> libraries.</p>
+<p>The goal of this post is to do some data cleaning on the <a href="https://www.robots.ox.ac.uk/~vgg/data/pets/">Oxford-IIIT Pets dataset</a>, an image classification dataset with photos of cats and dogs. We’ll get our results using image embeddings from the body of a pre-trained ResNet model, some basic machine learning and image processing techniques, and a full ResNet model fine-tuned on the dataset using fastai. We’ll use fastai’s version of the Pets dataset and take advantage of some convenience functions from the <a href="https://docs.fast.ai/">fastai</a> and <a href="https://fastcore.fast.ai/">fastcore</a> libraries.</p>
 <div class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> os</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> random</span>
