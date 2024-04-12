@@ -2,6 +2,7 @@
   {
     "listing": "/index.html",
     "items": [
+      "/blog/posts/2024-04-11-diffedit/index.html",
       "/blog/posts/2024-03-25-object-detection/index.html",
       "/blog/posts/2024-02-12-hf-datasets-with-fastai/index.html",
       "/blog/posts/2024-01-08-clean-pets-dataset/index.html"
@@ -10,6 +11,7 @@
   {
     "listing": "/blog/index.html",
     "items": [
+      "/blog/posts/2024-04-11-diffedit/index.html",
       "/blog/posts/2024-03-25-object-detection/index.html",
       "/blog/posts/2024-02-12-hf-datasets-with-fastai/index.html",
       "/blog/posts/2024-01-08-clean-pets-dataset/index.html"
