@@ -549,48 +549,49 @@ Remove the noise from the final noised image using a DDIM process as described i
 <span id="cb8-111"><a href="#cb8-111" aria-hidden="true" tabindex="-1"></a>        strength<span class="op">=</span><span class="fl">0.5</span>,</span>
 <span id="cb8-112"><a href="#cb8-112" aria-hidden="true" tabindex="-1"></a>    ):</span>
 <span id="cb8-113"><a href="#cb8-113" aria-hidden="true" tabindex="-1"></a>    <span class="co"># convert image to YUV format to do histogram equalization</span></span>
-<span id="cb8-114"><a href="#cb8-114" aria-hidden="true" tabindex="-1"></a>    image <span class="op">=</span> np.array(image)</span>
-<span id="cb8-115"><a href="#cb8-115" aria-hidden="true" tabindex="-1"></a>    image <span class="op">=</span> cv2.cvtColor(image, cv2.COLOR_RGB2YUV)</span>
-<span id="cb8-116"><a href="#cb8-116" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-117"><a href="#cb8-117" aria-hidden="true" tabindex="-1"></a>    <span class="co"># do histogram equalization</span></span>
-<span id="cb8-118"><a href="#cb8-118" aria-hidden="true" tabindex="-1"></a>    clahe <span class="op">=</span> cv2.createCLAHE(clipLimit<span class="op">=</span><span class="fl">4.0</span>, tileGridSize<span class="op">=</span>(<span class="dv">8</span>, <span class="dv">8</span>))</span>
-<span id="cb8-119"><a href="#cb8-119" aria-hidden="true" tabindex="-1"></a>    image[..., <span class="dv">0</span>] <span class="op">=</span> clahe.<span class="bu">apply</span>(image[..., <span class="dv">0</span>])</span>
-<span id="cb8-120"><a href="#cb8-120" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-121"><a href="#cb8-121" aria-hidden="true" tabindex="-1"></a>    <span class="co"># convert image back to RGB format</span></span>
-<span id="cb8-122"><a href="#cb8-122" aria-hidden="true" tabindex="-1"></a>    image <span class="op">=</span> cv2.cvtColor(image, cv2.COLOR_YUV2RGB)</span>
-<span id="cb8-123"><a href="#cb8-123" aria-hidden="true" tabindex="-1"></a>    image <span class="op">=</span> Image.fromarray(image)</span>
-<span id="cb8-124"><a href="#cb8-124" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-125"><a href="#cb8-125" aria-hidden="true" tabindex="-1"></a>    <span class="co"># add noise</span></span>
-<span id="cb8-126"><a href="#cb8-126" aria-hidden="true" tabindex="-1"></a>    latent <span class="op">=</span> image2latent(image, vae)</span>
-<span id="cb8-127"><a href="#cb8-127" aria-hidden="true" tabindex="-1"></a>    latent, timestep <span class="op">=</span> add_noise_at_strength(latent, scheduler, strength<span class="op">=</span>strength)</span>
-<span id="cb8-128"><a href="#cb8-128" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-129"><a href="#cb8-129" aria-hidden="true" tabindex="-1"></a>    <span class="co"># compute the mask</span></span>
-<span id="cb8-130"><a href="#cb8-130" aria-hidden="true" tabindex="-1"></a>    embedded_prompt_1 <span class="op">=</span> embed_prompt(prompt_1, tokenizer, text_encoder)</span>
-<span id="cb8-131"><a href="#cb8-131" aria-hidden="true" tabindex="-1"></a>    embedded_prompt_2 <span class="op">=</span> embed_prompt(prompt_2, tokenizer, text_encoder)</span>
-<span id="cb8-132"><a href="#cb8-132" aria-hidden="true" tabindex="-1"></a>    noise_diff <span class="op">=</span> compute_average_noise_difference(</span>
-<span id="cb8-133"><a href="#cb8-133" aria-hidden="true" tabindex="-1"></a>        latent,</span>
-<span id="cb8-134"><a href="#cb8-134" aria-hidden="true" tabindex="-1"></a>        embedded_prompt_1,</span>
-<span id="cb8-135"><a href="#cb8-135" aria-hidden="true" tabindex="-1"></a>        embedded_prompt_2,</span>
-<span id="cb8-136"><a href="#cb8-136" aria-hidden="true" tabindex="-1"></a>        scheduler,</span>
-<span id="cb8-137"><a href="#cb8-137" aria-hidden="true" tabindex="-1"></a>        timestep,</span>
-<span id="cb8-138"><a href="#cb8-138" aria-hidden="true" tabindex="-1"></a>        unet,</span>
-<span id="cb8-139"><a href="#cb8-139" aria-hidden="true" tabindex="-1"></a>        guidance_scale,</span>
-<span id="cb8-140"><a href="#cb8-140" aria-hidden="true" tabindex="-1"></a>        num_iterations</span>
-<span id="cb8-141"><a href="#cb8-141" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb8-142"><a href="#cb8-142" aria-hidden="true" tabindex="-1"></a>    mask <span class="op">=</span> postprocess_and_binarize(noise_diff)</span>
-<span id="cb8-143"><a href="#cb8-143" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-144"><a href="#cb8-144" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> mask</span>
-<span id="cb8-145"><a href="#cb8-145" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-146"><a href="#cb8-146" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> postprocess_and_binarize(noise_diff, filter_size<span class="op">=</span><span class="dv">15</span>, threshold<span class="op">=</span><span class="fl">0.3</span>):</span>
-<span id="cb8-147"><a href="#cb8-147" aria-hidden="true" tabindex="-1"></a>    <span class="co"># apply Gaussian blur to improve the quality of the mask</span></span>
-<span id="cb8-148"><a href="#cb8-148" aria-hidden="true" tabindex="-1"></a>    noise_diff <span class="op">=</span> noise_diff.cpu().numpy()</span>
-<span id="cb8-149"><a href="#cb8-149" aria-hidden="true" tabindex="-1"></a>    noise_diff <span class="op">=</span> cv2.GaussianBlur(noise_diff, (filter_size, filter_size), <span class="dv">0</span>)</span>
-<span id="cb8-150"><a href="#cb8-150" aria-hidden="true" tabindex="-1"></a>    </span>
-<span id="cb8-151"><a href="#cb8-151" aria-hidden="true" tabindex="-1"></a>    <span class="co"># binarize and put on GPU</span></span>
-<span id="cb8-152"><a href="#cb8-152" aria-hidden="true" tabindex="-1"></a>    mask <span class="op">=</span> torch.from_numpy(noise_diff <span class="op">&gt;</span> threshold).<span class="bu">long</span>()</span>
-<span id="cb8-153"><a href="#cb8-153" aria-hidden="true" tabindex="-1"></a>    mask <span class="op">=</span> mask.to(device)</span>
-<span id="cb8-154"><a href="#cb8-154" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-155"><a href="#cb8-155" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> mask</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb8-114"><a href="#cb8-114" aria-hidden="true" tabindex="-1"></a>    <span class="co"># not in DiffEdit paper, but helps with objects in shadows</span></span>
+<span id="cb8-115"><a href="#cb8-115" aria-hidden="true" tabindex="-1"></a>    image <span class="op">=</span> np.array(image)</span>
+<span id="cb8-116"><a href="#cb8-116" aria-hidden="true" tabindex="-1"></a>    image <span class="op">=</span> cv2.cvtColor(image, cv2.COLOR_RGB2YUV)</span>
+<span id="cb8-117"><a href="#cb8-117" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-118"><a href="#cb8-118" aria-hidden="true" tabindex="-1"></a>    <span class="co"># do histogram equalization</span></span>
+<span id="cb8-119"><a href="#cb8-119" aria-hidden="true" tabindex="-1"></a>    clahe <span class="op">=</span> cv2.createCLAHE(clipLimit<span class="op">=</span><span class="fl">4.0</span>, tileGridSize<span class="op">=</span>(<span class="dv">8</span>, <span class="dv">8</span>))</span>
+<span id="cb8-120"><a href="#cb8-120" aria-hidden="true" tabindex="-1"></a>    image[..., <span class="dv">0</span>] <span class="op">=</span> clahe.<span class="bu">apply</span>(image[..., <span class="dv">0</span>])</span>
+<span id="cb8-121"><a href="#cb8-121" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-122"><a href="#cb8-122" aria-hidden="true" tabindex="-1"></a>    <span class="co"># convert image back to RGB format</span></span>
+<span id="cb8-123"><a href="#cb8-123" aria-hidden="true" tabindex="-1"></a>    image <span class="op">=</span> cv2.cvtColor(image, cv2.COLOR_YUV2RGB)</span>
+<span id="cb8-124"><a href="#cb8-124" aria-hidden="true" tabindex="-1"></a>    image <span class="op">=</span> Image.fromarray(image)</span>
+<span id="cb8-125"><a href="#cb8-125" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-126"><a href="#cb8-126" aria-hidden="true" tabindex="-1"></a>    <span class="co"># add noise</span></span>
+<span id="cb8-127"><a href="#cb8-127" aria-hidden="true" tabindex="-1"></a>    latent <span class="op">=</span> image2latent(image, vae)</span>
+<span id="cb8-128"><a href="#cb8-128" aria-hidden="true" tabindex="-1"></a>    latent, timestep <span class="op">=</span> add_noise_at_strength(latent, scheduler, strength<span class="op">=</span>strength)</span>
+<span id="cb8-129"><a href="#cb8-129" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-130"><a href="#cb8-130" aria-hidden="true" tabindex="-1"></a>    <span class="co"># compute the mask</span></span>
+<span id="cb8-131"><a href="#cb8-131" aria-hidden="true" tabindex="-1"></a>    embedded_prompt_1 <span class="op">=</span> embed_prompt(prompt_1, tokenizer, text_encoder)</span>
+<span id="cb8-132"><a href="#cb8-132" aria-hidden="true" tabindex="-1"></a>    embedded_prompt_2 <span class="op">=</span> embed_prompt(prompt_2, tokenizer, text_encoder)</span>
+<span id="cb8-133"><a href="#cb8-133" aria-hidden="true" tabindex="-1"></a>    noise_diff <span class="op">=</span> compute_average_noise_difference(</span>
+<span id="cb8-134"><a href="#cb8-134" aria-hidden="true" tabindex="-1"></a>        latent,</span>
+<span id="cb8-135"><a href="#cb8-135" aria-hidden="true" tabindex="-1"></a>        embedded_prompt_1,</span>
+<span id="cb8-136"><a href="#cb8-136" aria-hidden="true" tabindex="-1"></a>        embedded_prompt_2,</span>
+<span id="cb8-137"><a href="#cb8-137" aria-hidden="true" tabindex="-1"></a>        scheduler,</span>
+<span id="cb8-138"><a href="#cb8-138" aria-hidden="true" tabindex="-1"></a>        timestep,</span>
+<span id="cb8-139"><a href="#cb8-139" aria-hidden="true" tabindex="-1"></a>        unet,</span>
+<span id="cb8-140"><a href="#cb8-140" aria-hidden="true" tabindex="-1"></a>        guidance_scale,</span>
+<span id="cb8-141"><a href="#cb8-141" aria-hidden="true" tabindex="-1"></a>        num_iterations</span>
+<span id="cb8-142"><a href="#cb8-142" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb8-143"><a href="#cb8-143" aria-hidden="true" tabindex="-1"></a>    mask <span class="op">=</span> postprocess_and_binarize(noise_diff)</span>
+<span id="cb8-144"><a href="#cb8-144" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-145"><a href="#cb8-145" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> mask</span>
+<span id="cb8-146"><a href="#cb8-146" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-147"><a href="#cb8-147" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> postprocess_and_binarize(noise_diff, filter_size<span class="op">=</span><span class="dv">15</span>, threshold<span class="op">=</span><span class="fl">0.3</span>):</span>
+<span id="cb8-148"><a href="#cb8-148" aria-hidden="true" tabindex="-1"></a>    <span class="co"># apply Gaussian blur to improve the quality of the mask</span></span>
+<span id="cb8-149"><a href="#cb8-149" aria-hidden="true" tabindex="-1"></a>    noise_diff <span class="op">=</span> noise_diff.cpu().numpy()</span>
+<span id="cb8-150"><a href="#cb8-150" aria-hidden="true" tabindex="-1"></a>    noise_diff <span class="op">=</span> cv2.GaussianBlur(noise_diff, (filter_size, filter_size), <span class="dv">0</span>)</span>
+<span id="cb8-151"><a href="#cb8-151" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb8-152"><a href="#cb8-152" aria-hidden="true" tabindex="-1"></a>    <span class="co"># binarize and put on GPU</span></span>
+<span id="cb8-153"><a href="#cb8-153" aria-hidden="true" tabindex="-1"></a>    mask <span class="op">=</span> torch.from_numpy(noise_diff <span class="op">&gt;</span> threshold).<span class="bu">long</span>()</span>
+<span id="cb8-154"><a href="#cb8-154" aria-hidden="true" tabindex="-1"></a>    mask <span class="op">=</span> mask.to(device)</span>
+<span id="cb8-155"><a href="#cb8-155" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-156"><a href="#cb8-156" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> mask</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>Now we’ll finally generate our mask. Following the DiffEdit paper, we’ll call the prompt that accurately descsribes the image the <em>reference text</em> and the prompt that reflects the edits we want to make the <em>query</em>.</p>
 <div id="cell-23" class="cell" data-vscode="{&quot;languageId&quot;:&quot;python&quot;}" data-execution_count="36">
