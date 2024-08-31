@@ -1,0 +1,20 @@
+---
+title: A Dashboard for Crime in Los Angeles
+author: Jacob Rooney
+date: 2024-08-31
+date-format: long
+description: "A Shiny dashboard for crimes reported and arrests made in Los Angeles from 2020 through 2024."
+categories: [Dashboard, pandas, GeoPandas, Plotly, Shiny]
+---
+
+:::{.column-page}
+<iframe
+	src="https://jhrooney-la-crime-dashboard.hf.space"
+	frameborder="0"
+  height="800"
+  width="100%"
+></iframe>
+:::
+
+- [Click here](https://jhrooney-la-crime-dashboard.hf.space) for a full-screen version of the dashboard.
+- A Jupyter notebook detailing how to download and process the data used in the dashboard is available here.
