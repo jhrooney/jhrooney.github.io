@@ -16,5 +16,6 @@ categories: [Dashboard, pandas, GeoPandas, Plotly, Shiny]
 ></iframe>
 :::
 
+- If the dashboard graphs don't load, try refreshing the page.
 - [Click here](https://jhrooney-la-crime-dashboard.hf.space) for a full-screen version of the dashboard.
 - A Jupyter notebook detailing how to download and process the data used in the dashboard is available [here](https://github.com/jhrooney/jhrooney.github.io/blob/207555a570b00e5f794f7be74d2629029b37fbfc/blog/posts/2024-08-31-la-crime-dashboard/_data_processing.ipynb)
