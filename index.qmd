@@ -14,7 +14,7 @@ listing:
     contents: blog/posts
     type: default
     max-items: 5
-    sort: "date"
+    sort: "date desc"
 ---
 
 ::: {#landing}

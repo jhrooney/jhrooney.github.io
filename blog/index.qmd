@@ -5,7 +5,7 @@ listing:
   id: blog-posts
   contents: posts
   type: default
-  sort: "date"
+  sort: "date desc"
   categories: true
 ---
 
